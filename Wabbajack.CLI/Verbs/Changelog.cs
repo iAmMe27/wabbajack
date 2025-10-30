@@ -175,18 +175,89 @@ public class Changelog
             .Where(a => updatedArchives.All(x => x != a))
             .ToList();
 
-        if (newArchives.Count != 0 || removedArchives.Count != 0)
+       
+        if (newArchives.Count != 0)
         {
-            mdBuilder.AppendLine("**Download Changes:**");
+            mdBuilder.AppendLine("#### Added Mods");
             mdBuilder.AppendLine();
         }
+        
+        // Grouping edit for unpause
+        var groupedNewArchives = newArchives.GroupBy(a => new { ModName = GetModName(a), ManifestUrl = GetManifestUrl(a) });
 
-        newArchives.Do(a =>
+        foreach (var group in groupedNewArchives)
+        {
+            // Get the mod name and manifest URL for the header
+            var modName = group.Key.ModName;
+            var manifestUrl = group.Key.ManifestUrl;
+
+            mdBuilder.AppendLine($"- Added [{modName}]({manifestUrl})");
+            
+            foreach (var a in group)
+            {
+                mdBuilder.AppendLine($"  - {GetArchiveName(a)}");
+            }
+        }
+        
+        // Blank line for presentation
+        mdBuilder.AppendLine();
+        
+        /*newArchives.Do(a =>
         {
             mdBuilder.AppendLine($"- Added [{GetModName(a)}{GetModVersion(a)}]({GetManifestUrl(a)})");
-        });
+            mdBuilder.AppendLine($"  - {GetArchiveName(a)}");
+        });*/
         
-        updatedArchives.Do(a =>
+        // More grouping
+        
+        if (updatedArchives.Count != 0)
+        {
+            mdBuilder.AppendLine("#### Updated Mods");
+            mdBuilder.AppendLine();
+        }
+        
+        var groupedUpdatedArchives = updatedArchives.GroupBy(a => new { ModName = GetModName(a), ManifestUrl = GetManifestUrl(a) });
+
+        foreach (var group in groupedUpdatedArchives)
+        {
+            // Get the mod name and manifest URL for the header
+            var modName = group.Key.ModName;
+            var manifestUrl = group.Key.ManifestUrl;
+
+            mdBuilder.AppendLine($"- Updated [{modName}]({manifestUrl})");
+            
+            foreach (var a in group)
+            {
+                mdBuilder.AppendLine($"  - {GetArchiveName(a)}");
+            }
+        }
+        
+        // Blank line for presentation
+        mdBuilder.AppendLine();
+        
+        if (removedArchives.Count != 0)
+        {
+            mdBuilder.AppendLine("#### Removed Mods");
+            mdBuilder.AppendLine();
+        }
+        
+        var groupedRemovedArchives = removedArchives.GroupBy(a => new { ModName = GetModName(a), ManifestUrl = GetManifestUrl(a) });
+
+        foreach (var group in groupedRemovedArchives)
+        {
+            // Get the mod name and manifest URL for the header
+            var modName = group.Key.ModName;
+            var manifestUrl = group.Key.ManifestUrl;
+
+            mdBuilder.AppendLine($"- Removed [{modName}]({manifestUrl})");
+            
+            foreach (var a in group)
+            {
+                mdBuilder.AppendLine($"  - {GetArchiveName(a)}");
+            }
+        }
+        
+        /*updatedArchives.Do(a =>
         {
             mdBuilder.AppendLine($"- Updated [{GetModName(a)} to{GetModVersion(a)}]({GetManifestUrl(a)})");
         });
@@ -194,7 +265,7 @@ public class Changelog
         removedArchives.Do(a =>
         {
             mdBuilder.AppendLine($"- Removed [{GetModName(a)}{GetModVersion(a)}]({GetManifestUrl(a)})");
-        });
+        });*/
 
         // Blank line for presentation
         mdBuilder.AppendLine();
@@ -403,6 +474,11 @@ public class Changelog
         }
 
         return result;
+    }
+    
+    private static string GetArchiveName(Archive a)
+    {
+        return a.Name;
     }
 
     private static Uri? GetManifestUrl(Archive a)
