@@ -42,6 +42,7 @@ using System.Windows.Input;
 using Microsoft.Web.WebView2.Wpf;
 using System.Diagnostics;
 using System.Reactive.Concurrency;
+using System.Windows.Forms;
 
 namespace Wabbajack;
 
@@ -137,7 +138,11 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
     public ICommand EditInstallDetailsCommand { get; }
     public ICommand VerifyCommand { get; }
     public ICommand CreateShortcutCommand { get; }
-    
+
+    // For install path checking
+    private AbsolutePath? _lastInstallPath = null;
+    private bool _hasShownInstallFolderWarning = false;
+
     public InstallationVM(ILogger<InstallationVM> logger, DTOSerializer dtos, SettingsManager settingsManager, IServiceProvider serviceProvider,
         SystemParametersConstructor parametersConstructor, IGameLocator gameLocator, LogStream loggerProvider, ResourceMonitor resourceMonitor,
         Services.OSIntegrated.Configuration configuration, HttpClient client, DownloadDispatcher dispatcher, IEnumerable<INeedsLogin> logins)
@@ -431,6 +436,36 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
         {
             yield return DownloadsPathValidationResult.Fail($"Can't download into special folder ({specialDownloadsFolder})");
         }
+        
+        // iAmMe - Check if installation folder already has files
+        if (installPath.ToString().Length != 0 && installPath != _lastInstallPath && 
+            Directory.EnumerateFileSystemEntries(installPath.ToString()).Any())
+        {
+            if (_hasShownInstallFolderWarning)
+            {
+                yield break;
+            }
+
+            const string message = "There are existing files in the installation folder. Continuing means they will be deleted. Continue?";
+            const string title = "Files found in selected install folder";
+            const MessageBoxButtons buttons = MessageBoxButtons.YesNo;
+            var result = MessageBox.Show(message, title, buttons);
+            
+            if (result == DialogResult.Yes)
+            {
+                // User clicked yes, continue as normal
+                _hasShownInstallFolderWarning = true;
+                yield break;
+            }
+            else
+            {
+                _hasShownInstallFolderWarning = true;
+
+                yield return InstallPathValidationResult.Fail(
+                    "Installation folder already contains files, select a different install folder.");
+            }
+        }
+        
         // Disabled Because it was causing issues for people trying to update lists.
         //if (installPath.ToString().Length > 0 && downloadPath.ToString().Length > 0 && !HasEnoughSpace(installPath, downloadPath)){
         //    yield return InstallResponse.Fail("Can't install modlist due to lack of free hard drive space, please read the modlist Readme to learn more.");
@@ -518,6 +553,8 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
                 hex = (await WabbajackFileLocation.TargetPath.ToString().Hash()).ToHex();
                 prevSettings = await _settingsManager.Load<SavedInstallSettings>(InstallSettingsPrefix + hex);
                 hasPrevModListInstallation = !string.IsNullOrEmpty(prevSettings?.ModListLocation.ToString()) && prevSettings.ModListLocation.FileName == path.FileName;
+
+                if (prevSettings != null) _lastInstallPath = prevSettings.InstallLocation;
             }
 
             if (path.WithExtension(Ext.MetaData).FileExists())
