@@ -441,10 +441,13 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
         if (installPath.ToString().Length != 0 && installPath != _lastInstallPath && 
             Directory.EnumerateFileSystemEntries(installPath.ToString()).Any())
         {
-            if (_hasShownInstallFolderWarning)
+            _logger.LogDebug("Install path: {x}", installPath);
+            _logger.LogDebug("_hasShownInstallFolderWarning: {x}", _hasShownInstallFolderWarning);
+            
+            /*if (_hasShownInstallFolderWarning)
             {
                 yield break;
-            }
+            }*/
 
             const string message = "There are existing files in the installation folder. Continuing means they will be deleted. Continue?";
             const string title = "Files found in selected install folder";
@@ -453,17 +456,21 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
             
             if (result == DialogResult.Yes)
             {
+                _logger.LogDebug("User clicked yes on message box");
+                
                 // User clicked yes, continue as normal
                 _hasShownInstallFolderWarning = true;
-                yield break;
             }
             else
             {
+                _logger.LogDebug("Message box result is {x}", result);
+                
                 _hasShownInstallFolderWarning = true;
-
                 yield return InstallPathValidationResult.Fail(
                     "Installation folder already contains files, select a different install folder.");
             }
+
+            
         }
         
         // Disabled Because it was causing issues for people trying to update lists.
